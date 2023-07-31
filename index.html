@@ -1,0 +1,296 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Document</title>
+    <script src="https://cdn.jsdelivr.net/npm/vue@2.7.8/dist/vue.js"></script>
+    <script src="index.js"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500&family=Roboto:wght@300;400;500&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div id="app">
+        <header class="header">
+            <div class="container">
+                <div class="menu">
+                    <a class="mainTitle">
+                        <span class="mainTitle__text">Комментарии</span>
+                        <span class="mainTitle__count">({{page.allComments.length}})</span>
+                    </a>
+                    <div class="selectWrap">
+                        <div class="main_btn">
+                            <button class="btn1" @click="toggleSelect">{{curSelectText}}
+                            </button>
+                            <img class="cone" :class="{'rotate': !closeSelect}" src="icons/cone.svg" alt="">
+                        </div>
+
+                        <div :class="{'d-none': closeSelect}" class="dropdown">
+                            <button class="btn" @click="sortBy('По дате', 'sortDate')">
+                                <img v-show="curSelect == 'sortDate'"  src="icons/icons8-галочка-96 1.svg" alt="">
+                                По дате
+                            </button>
+                            <button class="btn" @click="sortBy('По количеству оценок', 'sortRating')">
+                                <img v-show="curSelect == 'sortRating'"  src="icons/icons8-галочка-96 1.svg" alt="">
+                                По количеству оценок
+                            </button>
+                            <button class="btn" @click="sortBy('По количеству ответов', 'sortAnswers')">
+                                <img v-show="curSelect == 'sortAnswers'"  src="icons/icons8-галочка-96 1.svg" alt="">
+                                По количеству ответов
+                            </button>
+                        </div>
+                    </div>
+
+                    <div @click="filterToggleFavorite" class="favorites">
+                        <span class="favorites__text">Избранное</span>
+                        <img src="icons/like.svg" class="favorites__icon"></img>
+                    </div>
+                </div>
+            </div>
+        </header>
+        <main>
+            <div class="container">
+                <div class="main_form">
+                    <div class="form_text-wrap">
+                        <div class="name_validate_wrap">
+                            <div class="img_name_wrap">
+                                <img class="main_photo" style="width: 50px; border-radius: 50%;" :src="photo" alt="">
+                                <span class="name">{{name}}</span>
+                            </div>
+                            <span class="validate" :class="{'redText': isLongText}">{{countSymbols}}</span>
+                        </div>
+                        <textarea class="textarea" v-model="text" placeholder="Введите текст сообщения..."></textarea>
+                    </div>
+                    <div class="form_btn-wrap">
+                        <button class="form_btn" @click="send" :disabled = "isLongText || text.length == 0" :class="{'greenBtn': text.length > 0 && !isLongText}">Отправить</button>
+                        <span class="redText longMessage" :class="{'hidden':!isLongText}" >Слишком длинное сообщение</span>
+                    </div>
+                </div>
+                <div class="mainComment" v-for="com in page.allComments" :class="{'d-none':!com.favorites && filterFavorite}">
+                    <div class="name_validate_wrap">
+                        <div class="img_name_wrap">
+                            <img class="main_photo" style="width: 50px; border-radius: 50%;" :src="photo" alt="">
+                            <span class="name">{{name}}</span>
+                        </div>
+                        <span class="validate date">{{bla(com.date)}}</span>
+                    </div>
+                    <div class="text_comment">{{com.text}}</div>
+
+                    <div class="oppo">
+                        <button class="answer_btn" @click="toggleAnswer(com)">
+                            <img class="arrow" src="icons/arrow.svg" alt="">
+                            Ответить
+                        </button>
+                        <div class="favorite">
+                            <button class="inFavorite" @click="toggleFavorite(com)">
+                                <template v-if="!com.favorites">
+                                    <img class="like" src="icons/like2.svg" alt="" v-show="!com.favorites"> 
+                                    <span>В избранное</span>
+                                </template>
+                                <template v-else>
+                                    <img class="like" src="icons/like3.svg" alt="" v-show="com.favorites">
+                                    <span>В избранном</span>                                    
+                                </template>
+                            </button>
+                        </div>
+                        <div class="rating">
+                            <button class="down" @click="downRating(com)">-</button>
+                            <span class="countRating" :class="{'red': com.rating < 0, 'green': com.rating > 0}">{{com.rating}}</span>
+                            <button class="up" @click="upRating(com)">+</button>
+                        </div>
+                    </div>
+
+                    <div class="answer_wrap" :class="{'animate-d-none':!com.showAnswer}">
+                        <div class="main_form">
+                            <div class="form_text-wrap">
+                                <div class="name_validate_wrap name_validate_wrap--inAnswer">
+                                    <div class="img_name_wrap">
+                                        <img class="main_photo" style="width: 50px; border-radius: 50%;" :src="photo" alt="">
+                                        <span class="name">{{name}}</span>
+                                    </div>
+
+                                    <span class="validate" v-if="com.writeText.length == 0">Макс. 1000 символов</span>
+                                    <span class="validate" v-if="com.writeText.length > 0" :class="{'redText': com.writeText.length > 1000}">{{com.writeText.length}}/1000</span>
+                                </div>
+                                <textarea class="textarea" v-model="com.writeText" placeholder="Введите текст сообщения..."></textarea>
+                            </div>
+                            <div class="form_btn-wrap">
+                                <button class="form_btn" @click="sendSecond(com)" :disabled = "com.writeText.length>1000 || com.writeText.length == 0" :class="{'greenBtn': com.writeText.length > 0 && com.writeText.length <= 1000}">Отправить</button>
+                                <span class="redText longMessage" :class="{'hidden':com.writeText.length<=1000}" >Слишком длинное сообщение</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="mainComment answers" v-for="secCom in com.answer">
+                        <div class="name_validate_wrap">
+                            <div class="img_name_wrap">
+                                <img class="main_photo" style="width: 50px; border-radius: 50%;" :src="com.photo" alt="">
+                                <div class="wrap_name_linkToComment">
+                                    <span class="name">{{secCom.name}}</span>
+                                    <div class="linkToComment">
+                                        <img src="icons/arrow.svg" alt="">
+                                        <span>{{com.name}}</span>
+                                    </div>
+                                </div>
+                            </div>
+                            <span class="validate date">{{bla(secCom.date)}}</span>
+                        </div>
+                        <div class="text_comment">{{secCom.text}}</div>
+    
+                        <div class="oppo">
+                            <div class="favorite">
+                                <button class="inFavorite" @click="toggleFavorite(secCom)" :class="{'active':secCom.favorites}">
+                                    <template v-if="!secCom.favorites">
+                                        <img class="like" src="icons/like2.svg" alt="" v-show="!secCom.favorites"> 
+                                        <span>В избранное</span>
+                                    </template>
+                                    <template v-else>
+                                        <img class="like" src="icons/like3.svg" alt="" v-show="secCom.favorites">
+                                        <span>В избранном</span>                                    
+                                    </template>
+                            </div>
+                            <div class="rating">
+                                <button class="down" @click="downRating(secCom)">-</button>
+                                <span class="countRating" :class="{'red': secCom.rating < 0, 'green': secCom.rating > 0}">{{secCom.rating}}</span>
+                                <button class="up" @click="upRating(secCom)">+</button>
+                            </div>
+                        </div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+
+
+    <script>
+        let lsPage = localStorage.getItem('page')
+        page = new _Page()
+
+        if(lsPage){
+            let jsPage = JSON.parse(lsPage)
+            jsPage.allComments.forEach(e => {
+                page.addComment(e.name, e.text, e.photo, e.date, e.SecondComment, e.favorites, e.rating, e.answer)
+            });
+        }
+
+        
+
+        let app = new Vue({
+            el: '#app',
+            
+            data: {
+                text: '',
+                name: 'Пупа Васькин',
+                page: {
+                    allComments:[]
+                },
+                filterFavorite: false,
+                closeSelect: true,
+                curSelectText: 'По количеству оценок',
+                curSelect: 'sortRating',
+                photo: 'data:image/jpeg;base64,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',
+                isLongText: false,
+                isLongText1: false
+            },
+            methods: {
+                send: function () {
+                    if(this.text.trim() == ''){
+                        alert('нет текста')
+                    }else{
+                        this.page.addComment(this.name, this.text)
+                        console.log(this.page)
+                        this.update()
+                        this.text = ''
+                    }
+                },
+                update: function(){
+                    localStorage.setItem('page', JSON.stringify(this.page))
+                },
+
+                sendSecond(com){
+                    com.addSecondComment(this.name, com.writeText)
+                    this.update()
+                },
+                toggleFavorite(com) {
+                    com.favorites = !com.favorites
+                    console.log(com)
+                    this.update()
+                },
+
+                filterToggleFavorite(com) {
+                    this.filterFavorite = !this.filterFavorite
+                },
+
+                downRating(com) {
+                    com.rating -= 1
+                    this.update()
+                },
+
+                upRating(com) {
+                    com.rating += 1
+                    this.update()
+                },
+                toggleSelect(){
+                    this.closeSelect = !this.closeSelect
+
+                },
+                sortBy(text, filterType){
+                    this.closeSelect = true
+                    this.curSelectText = text
+                    this.curSelect = filterType
+                    
+                    if(filterType == 'sortDate'){
+                        this.page.allComments.sort((a, b)=> a.date - b.date)
+                    }
+                    if(filterType == 'sortRating'){
+                        this.page.allComments.sort((a, b)=> b.rating - a.rating)
+                    }
+                    if(filterType == 'sortAnswers'){
+                        this.page.allComments.sort((a, b)=> b.answer.length - a.answer.length)
+                    }
+                },
+
+                bla(d){
+                    return `${new Date(d).getDate()}.0${new Date(d).getMonth()} ${new Date(d).getHours()}:${new Date(d).getMinutes()}`
+                },
+                toggleAnswer(com){
+                    if(typeof com.showAnswer == "undefined"){
+                        Vue.set(com, 'showAnswer', false)
+                    }
+                    com.showAnswer = !com.showAnswer
+                }
+                
+            },
+            computed: {
+                countSymbols: function () {
+                    if(this.text.length == 0) {
+                        this.isLongText = false
+                        return "Макс. 1000 символов"
+                    } 
+                    
+                    if (this.text.length > 1000) {
+                        this.isLongText = true
+                        return `${this.text.length}/1000`
+                    }
+                    if(this.text.length > 0) {
+                        this.isLongText = false
+                        return `${this.text.length}/1000`
+                    }
+                }
+            }
+
+        })
+
+        app.page = page
+        app.sortBy('По количеству оценок', 'sortRating')
+
+        document.querySelector('textarea').addEventListener('input', function (e) {
+            e.target.style.height = 'auto'
+            e.target.style.height = e.target.scrollHeight + 20 + "px"
+        })
+
+    </script>
+</body>
+</html>
